@@ -193,9 +193,10 @@ def pfb_reconstruct(data, nchans, coefs, mask, fillmethod, fillparams=[], realou
     n_pre_pad = nchans - (h_len % nchans)
     n_post_pad = 0
 
-    n_pre_remove = (h_len + n_pre_pad) // nchans
+    n_pre_remove = (h_len + n_pre_pad)
 
     n_samps = ntime * nchans
+
     # Make sure you have enough samples.
     while (
         _output_len(len(coefs) + n_pre_pad + n_post_pad, n_samps, 1, nchans)
@@ -230,7 +231,7 @@ def pfb_reconstruct(data, nchans, coefs, mask, fillmethod, fillparams=[], realou
 
     for isub in range(subchan):
         x_out = x_summed[:, :, isub].T
-        rec_array[:, isub] = x_out.flatten()
+        rec_array[:, isub] = x_out.flatten()[n_pre_remove:n_samps+n_pre_remove]
 
     return rec_array
 
