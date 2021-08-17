@@ -179,7 +179,7 @@ def pfb_reconstruct(data, nchans, coefs, mask, fillmethod, fillparams=[], realou
 
     rec_input[mask] = data
 
-    out_data = np.fft.fft(rec_input, n=nchans, axis=0)
+    out_data =np.fft.ifft(rec_input, n=nchans, axis=0)
     if realout:
         out_data = out_data.real
 
@@ -203,16 +203,18 @@ def pfb_reconstruct(data, nchans, coefs, mask, fillmethod, fillparams=[], realou
         < ntime + n_pre_remove
     ):
         n_post_pad += 1
+
     # Make sure length of filter will be multiple of nchans
     n_post_pad += nchans - ((M + n_pre_pad + n_post_pad) % nchans)
     h_dt = coefs.dtype
-    h = np.concatenate(
+    h_full = np.concatenate(
         [np.zeros(n_pre_pad, dtype=h_dt), coefs, np.zeros(n_post_pad, dtype=h_dt)]
     )
     # Number of filter coefficients per channel
     M_c = (M + n_pre_pad + n_post_pad) // nchans
     # Reshape filter
-    h = h.reshape((M_c, nchans)).T
+    h_full = h_full.reshape((M_c, nchans))[:,::-1].T
+
     # Number of data samples per channel
     W = int(math.ceil(n_samps / M_c / nchans))
     # Array to be filled up
@@ -221,17 +223,23 @@ def pfb_reconstruct(data, nchans, coefs, mask, fillmethod, fillparams=[], realou
 
     zfill = np.zeros((nchans, (nfull - n_samps) // nchans), dtype=rec_array.dtype)
 
+    # import ipdb
+    # ipdb.set_trace()
     for isub in range(subchan):
         x_p = out_data[:, :, isub]
+        # x_odd = np.fft.fftshift(x_p[:,1::2],axes=0)
+        # x_p[:,1::2] = x_odd
         x_p = np.append(x_p, zfill, axis=1)
-        for p_i, (x_i, h_i) in enumerate(zip(x_p, h)):
+        for p_i, (x_i, h_i) in enumerate(zip(x_p, h_full)):
             # Use correlate for filtering. Due to orientation of how filter is broken up.
             # Also using full signal to make sure padding and removal is done right.
-            x_summed[p_i, :, isub] = sig.correlate(x_i, h_i, mode="full")
+            x_summed[p_i, :, isub] = sig.convolve(x_i, h_i, mode="full")
 
     for isub in range(subchan):
-        x_out = x_summed[:, :, isub].T
-        rec_array[:, isub] = x_out.flatten()[n_pre_remove:n_samps+n_pre_remove]
+        # x_out = np.fft.fftshift(np.fft.fft(x_summed[:, n_pre_remove:(n_samps//nchans)+n_pre_remove, isub].T,axis=1).real,axes=1)
+        # rec_array[:, isub] = x_out.flatten()
+        x_out = x_summed[:, n_pre_remove:(n_samps//nchans)+n_pre_remove, isub].T
+        rec_array[:, isub] = x_out.flatten()
 
     return rec_array
 
@@ -239,9 +247,7 @@ def pfb_reconstruct(data, nchans, coefs, mask, fillmethod, fillparams=[], realou
 def pfb_decompose(data, nchans, coefs, mask):
     """Polyphase filter function
 
-    Takes the sampled and applies polyphase filter bank to channelize frequency content. Padding
-    for filter is similar to scipy.signal.resample_poly, so output samples are shifted toward middle
-    of array. The only channels kept are those list in the mask variable.
+    Takes the sampled and applies polyphase filter bank to channelize frequency content. Padding for filter is similar to scipy.signal.resample_poly, so output samples are shifted toward middle of the array. The only channels kept are those list in the mask variable.
 
     Parameters
     ----------
@@ -299,7 +305,7 @@ def pfb_decompose(data, nchans, coefs, mask):
         x_p = data[:, isub]
         x_p = np.append(x_p, zfill, axis=0)
         # make x_p frequency x time orientation
-        x_p = x_p.reshape((W * M_c, nchans)).T
+        x_p = x_p.reshape((W * M_c, nchans)).T[::-1]
         for p_i, (x_i, h_i) in enumerate(zip(x_p, h)):
             # Use correlate for filtering. Due to orientation of how filter is broken up.
             # Also using full signal to make sure padding and removal is done right.
