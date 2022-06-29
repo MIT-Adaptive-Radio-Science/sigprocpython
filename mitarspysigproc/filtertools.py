@@ -3,8 +3,23 @@ import scipy.signal as sig
 import numpy as np
 
 
-def kaiser(nchans, beta=1.7 * np.pi, pow2=True):
-    """Creates a Kaiser window with a flat passband"""
+def kaiser_coeffs(nchans, beta=1.7 * np.pi, pow2=True):
+    """Creates a Kaiser window with a flat passband
+
+    Parameters
+    ----------
+    nchans : int
+        Number of frequency channels that the coefficients will be used for.
+    beta : float
+        Shape parameter for the filter.
+    pow2 : bool
+        Pad coefficients with zeros to the next power of 2.
+
+    Returns
+    -------
+    taps : array_like
+        Resulting filter taps.
+    """
 
     ntaps = 24 * nchans
     # If you double this you can do this all with integers
@@ -19,8 +34,23 @@ def kaiser(nchans, beta=1.7 * np.pi, pow2=True):
     # sig.firwin(24*N, 0.5, window=('kaiser', 3*np.pi), scale=True, fs=N)
 
 
-def kaisersyn(nchans, beta=1.7 * np.pi, pow2=True):
-    """Creates a Kaiser window with a flat passband"""
+def kaiser_syn_coeffs(nchans, beta=1.7 * np.pi, pow2=True):
+    """Creates a Kaiser window with a flat passband
+
+    Parameters
+    ----------
+    nchans : int
+        Number of frequency channels that the coefficients will be used for.
+    beta : float
+        Shape parameter for the filter.
+    pow2 : bool
+        Pad coefficients with zeros to the next power of 2.
+
+    Returns
+    -------
+    taps : array_like
+        Resulting filter taps.
+    """
 
     ntaps = 12 * nchans
     # If you double this you can do this all with integers
@@ -34,7 +64,14 @@ def kaisersyn(nchans, beta=1.7 * np.pi, pow2=True):
 
 
 def createcoeffs(savedir):
-    """ """
+    """Create a set of files for taps.
+
+    Parameters
+    ----------
+    savedir : str
+        Directory where the data will be saved.
+
+    """
     chanarr = 2 ** np.arange(1, 11)
     maxchans = chanarr.max()
     maxchar = int(np.ceil(np.log10(maxchans)))
