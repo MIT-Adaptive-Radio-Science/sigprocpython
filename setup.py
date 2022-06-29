@@ -10,7 +10,7 @@ from setuptools import setup, find_packages
 import versioneer
 
 req = ["scipy", "numpy", "matplotlib", "digital_rf"]
-scripts = []
+scripts = ["bin/drf_decompose.py"]
 
 
 config = dict(

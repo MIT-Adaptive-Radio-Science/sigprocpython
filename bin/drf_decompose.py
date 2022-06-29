@@ -14,6 +14,8 @@ import digital_rf as drf
 from mitarspysigproc import pfb_decompose, kaiser_coeffs
 
 import ipdb
+
+
 def parse_command_line(str_input=None):
     """This will parse through the command line arguments
 
@@ -34,7 +36,9 @@ def parse_command_line(str_input=None):
     formatter = argparse.RawDescriptionHelpFormatter(scriptname)
     width = formatter._width
     title = "DRF PFB"
-    shortdesc = "Run a polyphase filter bank and break up data into frequency channels. "
+    shortdesc = (
+        "Run a polyphase filter bank and break up data into frequency channels. "
+    )
     desc = "\n".join(
         (
             "*" * width,
@@ -65,14 +69,14 @@ def parse_command_line(str_input=None):
         dest="pfbchans",
         help="Number of pfb channels",
         required=True,
-        type=int
+        type=int,
     )
     parser.add_argument(
         "-c",
         "--channame",
         dest="channame",
         help="Name of channel with sub channel seperated by a colon.",
-        default= None,
+        default=None,
     )
 
     parser.add_argument(
@@ -80,18 +84,12 @@ def parse_command_line(str_input=None):
         "--outdir",
         dest="outdir",
         required=False,
-        default='',
+        default="",
         type=str,
         help="Altitude in km for the average orbit.",
     )
     parser.add_argument(
-        "-m",
-        "--mask",
-        dest="mask",
-        required=False,
-        type=str,
-        default=''
-
+        "-m", "--mask", dest="mask", required=False, type=str, default=""
     )
     parser.add_argument(
         "-s",
@@ -108,12 +106,12 @@ def parse_command_line(str_input=None):
         help="Use the provided end time for the plot. format is ISO8601: 2015-11-01T15:24:00Z",
     )
 
-
     if str_input is None:
         return parser.parse_args()
     return parser.parse_args(str_input)
 
-def setuppfbout(datadir, chan, signal_params,pfb_params, st):
+
+def setuppfbout(datadir, chan, signal_params, pfb_params, st):
     """Sets up the digital_rf writer objects for each pfb channel.
 
     Parameters
@@ -173,13 +171,13 @@ def setuppfbout(datadir, chan, signal_params,pfb_params, st):
     freq_map = np.fft.fftfreq(sr_div, d=float(sr_dfs) / sr_nfs)
     pfb_out = {}
     pfb_obj = {}
-    ndig = int(np.log10(sr_div)) +1
+    ndig = int(np.log10(sr_div)) + 1
     chan_list = np.arange(sr_div)
     for ichan in chan_list:
-        if not ichan in pfb_params['mask']:
+        if not ichan in pfb_params["mask"]:
             continue
         # HACK how many channels will we need?
-        iname = chan + '_' + str(ichan).zfill(ndig)
+        iname = chan + "_" + str(ichan).zfill(ndig)
         cdir = datapath.joinpath(iname)
         if cdir.is_dir():
             shutil.rmtree(str(cdir))
@@ -216,7 +214,7 @@ def setuppfbout(datadir, chan, signal_params,pfb_params, st):
     return pfb_out, pfb_obj
 
 
-def runpfb(path,pfbchans,channame,outdir='',mask='',starttime='',endtime=''):
+def runpfb(path, pfbchans, channame, outdir="", mask="", starttime="", endtime=""):
     """Read in a Digital RF data set and decompose data using a polyphase filter bank.
 
     Parameters
@@ -237,18 +235,18 @@ def runpfb(path,pfbchans,channame,outdir='',mask='',starttime='',endtime=''):
         End time instead of the last time in the data. format is ISO8601: 2015-11-01T15:24:00Z
     """
 
-
     # Parameter fixes
-    if outdir == '':
+    if outdir == "":
         outdir = path.copy()
 
-    if mask == '':
+    if mask == "":
+        mask = "0-{0}".format(pfbchans)
         mask_arr = np.arange(pfbchans)
-    elif '-' in mask:
-        beg,fin = mask.split('-')
-        mask_arr = np.arange(int(beg),int(fin))
-    elif ',' in mask:
-        maskstr = mask.split(',')
+    elif "-" in mask:
+        beg, fin = mask.split("-")
+        mask_arr = np.arange(int(beg), int(fin))
+    elif "," in mask:
+        maskstr = mask.split(",")
         mask_arr = np.array([int(i) for i in maskstr])
 
     drfObj = drf.DigitalRFReader(str(path))
@@ -257,36 +255,40 @@ def runpfb(path,pfbchans,channame,outdir='',mask='',starttime='',endtime=''):
         chan = chans[0]
         subchan = 0
     else:
-        chan,subchan = channame.split(':')
-        subchan=int(subchan)
+        chan, subchan = channame.split(":")
+        subchan = int(subchan)
 
     # Get the signal properties
     signal_params = drfObj.get_properties(chan)
-    st_f,et_f = drfObj.get_bounds(chan)
-    sr = signal_params['samples_per_second']
+    st_f, et_f = drfObj.get_bounds(chan)
+    sr = signal_params["samples_per_second"]
 
-    if starttime =="":
-        st = drf.util.sample_to_datetime(st_f,sr)
+    if starttime == "":
+        st = drf.util.sample_to_datetime(st_f, sr)
         st_samp = st_f
     else:
-        st = drf.util.parse_identifier_to_time(starttime,sr)
-        st_samp = int(drf.util.datetime_to_timestamp(st)*sr)
+        st = drf.util.parse_identifier_to_time(starttime, sr)
+        st_samp = int(drf.util.datetime_to_timestamp(st) * sr)
 
-    if endtime =="":
-        et = drf.util.sample_to_datetime(et_f,sr)
+    if endtime == "":
+        et = drf.util.sample_to_datetime(et_f, sr)
         et_samp = et_f
     else:
-        et = drf.util.parse_identifier_to_time(endtime,sr)
-        et_samp = int(drf.util.datetime_to_timestamp(et)*sr)
+        et = drf.util.parse_identifier_to_time(endtime, sr)
+        et_samp = int(drf.util.datetime_to_timestamp(et) * sr)
 
-    sam_per_read = int(32 * 2 ** 20 / 4)
+    sam_per_read = int(32 * 2**20 / 4)
 
-    read_time = np.arange(st_samp,et_samp,sam_per_read)
-    pfb_params={'nchans':pfbchans,'coefs':kaiser_coeffs(pfbchans),'mask':mask_arr}
-    pfb_coefs = pfb_params['coefs']
+    read_time = np.arange(st_samp, et_samp, sam_per_read)
+    pfb_params = {
+        "nchans": pfbchans,
+        "coefs": kaiser_coeffs(pfbchans),
+        "mask": mask_arr,
+    }
+    pfb_coefs = pfb_params["coefs"]
 
     # Normalize the coefiecents to try to keep the variances
-    pfb_coefs = pfb_coefs/ np.sqrt(np.sum(np.power(pfb_coefs, 2)))
+    pfb_coefs = pfb_coefs / np.sqrt(np.sum(np.power(pfb_coefs, 2)))
     n_coefs = pfb_coefs.size
     M = n_coefs + ((n_coefs + 1) % 2)
     # Determine the amount of overlap needed after the filtering to keep things continuous between reads.
@@ -302,17 +304,23 @@ def runpfb(path,pfbchans,channame,outdir='',mask='',starttime='',endtime=''):
     pfb_params["nout"] = noutlist
     pfb_params["coefs"] = pfb_coefs
 
-    pfb_out, pfb_obj = setuppfbout(outdir, chan, signal_params,pfb_params, st)
+    pfb_out, pfb_obj = setuppfbout(outdir, chan, signal_params, pfb_params, st)
+    print("Decomposing {0} into {1} channels".format(path, pfbchans))
+    print("Keeping channels {0}".format(mask))
 
-    for ind,ist in enumerate(read_time):
-        nsamps = min(sam_per_read+M,et_samp-ist)
-        x = drfObj.read_vector(ist,nsamps,chan,subchan)
-        x_out = pfb_decompose(x, pfb_params['nchans'], pfb_params['coefs'], pfb_params['mask'])
+    for ind, ist in enumerate(read_time):
+        print("Reading {0} out of {1}".format(ind + 1, len(read_time)))
+        nsamps = min(sam_per_read + M, et_samp - ist)
+        x = drfObj.read_vector(ist, nsamps, chan, subchan)
+        x_out = pfb_decompose(
+            x, pfb_params["nchans"], pfb_params["coefs"], pfb_params["mask"]
+        )
 
-        for ipchan,iwriter in pfb_out.items():
+        for ipchan, iwriter in pfb_out.items():
             iwriter.rf_write(x_out[ipchan].astype(iwriter.dtype))
-    for ipchan,iwriter in pfb_out.items():
+    for ipchan, iwriter in pfb_out.items():
         iwriter.close()
+
 
 if __name__ == "__main__":
     args_commd = parse_command_line()

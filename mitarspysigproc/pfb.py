@@ -36,7 +36,7 @@ def pfbresponse(taps, nchans, fs):
         pfb_coefs = taps
     b = pfb_coefs / np.sqrt(np.sum(np.power(pfb_coefs, 2)))
 
-    nfreq = 2 ** 11
+    nfreq = 2**11
     [_, h] = sig.freqz(b, 1, nfreq, fs=fs, whole=True)
     hdb = np.fft.fftshift(20 * np.log10(np.abs(h)))
     hdb = hdb - np.nanmax(hdb)
@@ -179,7 +179,7 @@ def pfb_reconstruct(data, nchans, coefs, mask, fillmethod, fillparams=[], realou
 
     rec_input[mask] = data
 
-    out_data =np.fft.ifft(rec_input, n=nchans, axis=0)
+    out_data = np.fft.ifft(rec_input, n=nchans, axis=0)
     if realout:
         out_data = out_data.real
 
@@ -193,7 +193,7 @@ def pfb_reconstruct(data, nchans, coefs, mask, fillmethod, fillparams=[], realou
     n_pre_pad = nchans - (h_len % nchans)
     n_post_pad = 0
 
-    n_pre_remove = (h_len + n_pre_pad)
+    n_pre_remove = h_len + n_pre_pad
 
     n_samps = ntime * nchans
 
@@ -213,7 +213,7 @@ def pfb_reconstruct(data, nchans, coefs, mask, fillmethod, fillparams=[], realou
     # Number of filter coefficients per channel
     M_c = (M + n_pre_pad + n_post_pad) // nchans
     # Reshape filter
-    h_full = h_full.reshape((M_c, nchans))[:,::-1].T
+    h_full = h_full.reshape((M_c, nchans))[:, ::-1].T
 
     # Number of data samples per channel
     W = int(math.ceil(n_samps / M_c / nchans))
@@ -238,7 +238,7 @@ def pfb_reconstruct(data, nchans, coefs, mask, fillmethod, fillparams=[], realou
     for isub in range(subchan):
         # x_out = np.fft.fftshift(np.fft.fft(x_summed[:, n_pre_remove:(n_samps//nchans)+n_pre_remove, isub].T,axis=1).real,axes=1)
         # rec_array[:, isub] = x_out.flatten()
-        x_out = x_summed[:, n_pre_remove:(n_samps//nchans)+n_pre_remove, isub].T
+        x_out = x_summed[:, n_pre_remove : (n_samps // nchans) + n_pre_remove, isub].T
         rec_array[:, isub] = x_out.flatten()
 
     return rec_array
