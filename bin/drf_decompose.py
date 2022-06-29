@@ -208,8 +208,8 @@ def setuppfbout(datadir, chan, signal_params, pfb_params, st):
             "pfb",
         )
         pfbap = pfb_params.copy()
-        cur_freq = [freq_map[ichan]] * n_subchannels
-        pfbap["center_frequencies"] = np.array(cur_freq)
+        # cur_freq = [freq_map[ichan]] * n_subchannels
+        # pfbap["center_frequencies"] = np.array(cur_freq)
         pfb_obj[ichan].write(pfb_info["start_global_index"], pfbap)
     return pfb_out, pfb_obj
 
@@ -292,7 +292,6 @@ def runpfb(path, pfbchans, channame, outdir="", mask="", starttime="", endtime="
     n_coefs = pfb_coefs.size
     M = n_coefs + ((n_coefs + 1) % 2)
     # Determine the amount of overlap needed after the filtering to keep things continuous between reads.
-    max_overlap = M
 
     h_len = (M - 1) // 2
     ds_fac = pfb_params["nchans"]
@@ -315,7 +314,7 @@ def runpfb(path, pfbchans, channame, outdir="", mask="", starttime="", endtime="
         x_out = pfb_decompose(
             x, pfb_params["nchans"], pfb_params["coefs"], pfb_params["mask"]
         )
-
+        x_out = x_out[:,channel_taps:]
         for ipchan, iwriter in pfb_out.items():
             iwriter.rf_write(x_out[ipchan].astype(iwriter.dtype))
     for ipchan, iwriter in pfb_out.items():
