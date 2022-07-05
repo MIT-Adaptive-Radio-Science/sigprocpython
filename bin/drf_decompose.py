@@ -13,7 +13,6 @@ import digital_rf as drf
 
 from mitarspysigproc import pfb_decompose, kaiser_coeffs
 
-import ipdb
 
 
 def parse_command_line(str_input=None):
