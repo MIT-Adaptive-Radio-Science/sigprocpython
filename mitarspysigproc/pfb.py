@@ -1,6 +1,8 @@
 from pathlib import Path
 import math
+from copy import copy
 import numpy as np
+
 import scipy.signal as sig
 from scipy.signal._upfirdn_apply import _output_len
 import matplotlib.pyplot as plt
@@ -104,9 +106,9 @@ def plotresponse(freq_ar, filt_dict, nchans):
     fs_h = np.max(np.abs(freq_ar))
     f_wid = 1.25 * fs_h / nchans
 
-    filtnum = (0,)
+    filtnum = 0
     hpow = filt_dict[filtnum]
-    hplot = axs[0].plot(freq_ar * mult, hpow, "LineWidth", 3)[0]
+    hplot = axs[0].plot(freq_ar * mult, hpow, linewidth=3)[0]
     axs[0].set_xlim([-f_wid, f_wid])
     axs[0].set_ylim([-65, 5])
     axs[0].set_xlabel("Frequency {0}Hz".format(ack))
@@ -117,7 +119,7 @@ def plotresponse(freq_ar, filt_dict, nchans):
     hlist = []
     name_list = []
     for filtnum, hpow in filt_dict.items():
-        hplot = axs[1].plot(freq_ar * mult, hpow, "LineWidth", 3)[0]
+        hplot = axs[1].plot(freq_ar * mult, hpow,  linewidth=3)[0]
         hlist.append(hplot)
         name_list.append("Channel {}".format(filtnum))
         axs[1].set_xlim([-3 * f_wid, 3 * f_wid])
@@ -125,8 +127,11 @@ def plotresponse(freq_ar, filt_dict, nchans):
         axs[1].set_xlabel("Frequency {0}Hz".format(ack))
         axs[1].set_ylabel("Magnitude dB")
         axs[1].set_title("Multiple Filters")
-    axs[1].legend(hlist, name_list)
 
+
+    axs[1].legend(hlist, name_list)
+    axs[1].grid(True)
+    
     return fig, axs
 
 
