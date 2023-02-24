@@ -193,13 +193,16 @@ def pfb_reconstruct(data, nchans, coefs, mask, fillmethod, fillparams=[], realou
     M = coefs.shape[0]
     # Determine padding for filter
 
-    h_len = (M - 1) // nchans
+        # Figure out half length
+    if M % 2:
+        h_len = (M-1)//2
+    else:
+        h_len = M//2
 
     n_pre_pad = nchans - (h_len % nchans)
     n_post_pad = 0
 
-    n_pre_remove = h_len + n_pre_pad
-
+    n_pre_remove = (h_len + n_pre_pad)//nchans
     n_samps = ntime * nchans
 
     # Make sure you have enough samples.
@@ -238,12 +241,12 @@ def pfb_reconstruct(data, nchans, coefs, mask, fillmethod, fillparams=[], realou
         for p_i, (x_i, h_i) in enumerate(zip(x_p, h_full)):
             # Use correlate for filtering. Due to orientation of how filter is broken up.
             # Also using full signal to make sure padding and removal is done right.
-            x_summed[p_i, :, isub] = sig.convolve(x_i, h_i, mode="full")
+            x_summed[p_i, :, isub] = sig.correlate(x_i, h_i, mode="full")
 
     for isub in range(subchan):
         # x_out = np.fft.fftshift(np.fft.fft(x_summed[:, n_pre_remove:(n_samps//nchans)+n_pre_remove, isub].T,axis=1).real,axes=1)
         # rec_array[:, isub] = x_out.flatten()
-        x_out = x_summed[:, n_pre_remove : (n_samps // nchans) + n_pre_remove, isub].T
+        x_out = x_summed[:, n_pre_remove: (n_samps // nchans) + n_pre_remove, isub].T
         rec_array[:, isub] = x_out.flatten()
 
     return rec_array
@@ -277,7 +280,12 @@ def pfb_decompose(data, nchans, coefs, mask):
     M = coefs.shape[0]
     # Determine padding for filter
     nout = n_samps // nchans + (n_samps % nchans > 0)
-    h_len = (M - 1) // nchans
+    # Figure out half length
+    if M % 2:
+        h_len = (M-1)//2
+    else:
+        h_len = M//2
+
 
     n_pre_pad = nchans - (h_len % nchans)
     n_post_pad = 0
@@ -295,6 +303,7 @@ def pfb_decompose(data, nchans, coefs, mask):
     h = np.concatenate(
         [np.zeros(n_pre_pad, dtype=h_dt), coefs, np.zeros(n_post_pad, dtype=h_dt)]
     )
+    n_start = (M-1+n_pre_pad)//2//nchans + ((((M-1+n_pre_pad)//2)%nchans)>0)
     # Number of filter coefficients per channel
     M_c = (M + n_pre_pad + n_post_pad) // nchans
     # Reshape filter

@@ -21,7 +21,7 @@ def kaiser_coeffs(nchans, beta=1.7 * np.pi, pow2=True):
         Resulting filter taps.
     """
 
-    ntaps = 24 * nchans
+    ntaps = 64 * nchans
     # If you double this you can do this all with integers
     fs = nchans * 2
     if pow2:
@@ -52,14 +52,15 @@ def kaiser_syn_coeffs(nchans, beta=1.7 * np.pi, pow2=True):
         Resulting filter taps.
     """
 
-    ntaps = 12 * nchans
+    ntaps = 64 * nchans
     # If you double this you can do this all with integers
     fs = nchans * 2
     if pow2:
         ntaps = int(np.power(2, np.ceil(np.log2(ntaps))))
     # Make odd number so you have type 1 filter.
-    furry = sig.firwin(ntaps - 1, 1, window=("kaiser", beta), scale=True, fs=nchans)
+    furry = sig.firwin(ntaps - 1, 1, window=("kaiser", beta), scale=True, fs=fs)
     taps = np.concatenate(([0], furry))
+    taps = taps*nchans**2
     return taps
 
 
@@ -80,12 +81,12 @@ def createcoeffs(savedir):
     fstema = "kaiseranalysis" + suf_str + ".csv"
     fstems = "kaisersynthesis" + suf_str + ".csv"
     for ichans in chanarr:
-        taps = kaiser(ichans, pow2=False)
+        taps = kaiser_coeffs(ichans, pow2=False)
 
         fname = savepath.joinpath(fstema.format(ichans))
         np.savetxt(fname, taps, delimiter=",")
 
         if ichans >= 4:
-            taps = kaisersyn(ichans, pow2=False) * ichans / 2
+            taps = kaiser_syn_coeffs(ichans, pow2=False) * ichans / 2
             fname = savepath.joinpath(fstems.format(ichans))
             np.savetxt(fname, taps, delimiter=",")

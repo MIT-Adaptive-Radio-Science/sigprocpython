@@ -5,7 +5,7 @@ Create a chirp  and test the PFB.
 from pathlib import Path
 import numpy as np
 import scipy.signal as sig
-from moxiemictools import pfb_decompose, pfb_reconstruct
+from mitarspysigproc import pfb_decompose, pfb_reconstruct,kaiser_coeffs,kaiser_syn_coeffs
 import matplotlib.pyplot as plt
 
 
@@ -41,15 +41,15 @@ def runsintest(t_len,fs,bw,nzeros,nchans):
     pad = [np.zeros(nzeros),np.zeros(nzeros)]
     t,x = create_sin(t_len,fs,bw,nchans,pad)
     mainpath = Path(__file__).resolve().parent.parent
-    fname = mainpath.joinpath('coeffs',"kaiseranalysis{:04d}.csv".format(nchans))
-    coeffs = np.loadtxt(fname)
+    fname = mainpath.joinpath('mitarspysigproc','coeffs',"kaiseranalysis{:04d}.csv".format(nchans))
+    coeffs = kaiser_coeffs(nchans, pow2=False)
     mask = np.ones(nchans,dtype=bool)
     xout = pfb_decompose(x, nchans, coeffs, mask)
     fillmethod = ''
     fillparams = [0,0]
-    fname = mainpath.joinpath('coeffs',"kaisersynthesis{:04d}.csv".format(nchans))
-    syn_coefs = np.loadtxt(fname)
-    x_rec = pfb_reconstruct(xout,nchans,coeffs,mask,fillmethod,fillparams=[],realout=True)
+    fname = mainpath.joinpath('mitarspysigproc','coeffs',"kaisersynthesis{:04d}.csv".format(nchans))
+    syn_coeffs = kaiser_syn_coeffs(nchans, pow2=False)
+    x_rec = pfb_reconstruct(xout,nchans,syn_coeffs,mask,fillmethod,fillparams=[],realout=True)
     return x_rec,t,x, xout
 
 def nexpow2(x):
