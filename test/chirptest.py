@@ -5,14 +5,14 @@ Create a chirp  and test the PFB.
 from pathlib import Path
 import numpy as np
 import scipy.signal as sig
-from mitarspysigproc import pfb_decompose, pfb_reconstruct,kaiser_coeffs,kaiser_syn_coeffs
+from mitarspysigproc import pfb_decompose, pfb_reconstruct,kaiser_coeffs,kaiser_syn_coeffs,npr_analysis,npr_synthesis,rref_coef
 import matplotlib.pyplot as plt
 
 
 def create_chirp(t_len, fs, bw,pad):
     """
     """
-    t = np.linspace(0,t_len, t_len*fs)
+    t = np.linspace(0,t_len, int(t_len*fs))
 
     x = sig.chirp(t,t1=t_len,f0=0,f1=bw,method='linear')
 
@@ -47,6 +47,30 @@ def runchirptest(t_len,fs,bw,nzeros,nchans):
     syn_coeffs = kaiser_syn_coeffs(nchans)
     x_rec = pfb_reconstruct(xout,nchans,syn_coeffs,mask,fillmethod,fillparams=[],realout=True)
     return x_rec,t,x, xout
+
+def runnprchirptest(t_len,fs,bw,nzeros,nchans):
+    """
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+
+    """
+    pad = [np.zeros(nzeros),np.zeros(nzeros)]
+    t,x = create_chirp(t_len,fs,bw,pad)
+    mainpath = Path(__file__).resolve().parent.parent
+    # fname = mainpath.joinpath('coeffs',"kaiseranalysis{:04d}.csv".format(nchans))
+    coeffs = rref_coef(nchans,64)
+    mask = np.ones(nchans,dtype=bool)
+    xout = npr_analysis(x, nchans, coeffs)
+    fillmethod = ''
+    fillparams = [0,0]
+    # fname = mainpath.joinpath('coeffs',"kaisersynthesis{:04d}.csv".format(nchans))
+    x_rec = npr_synthesis(xout,nchans,coeffs)
+    return x_rec,t,x, xout
+
 
 def nexpow2(x):
     """Returns the next power of two.
@@ -109,16 +133,26 @@ def plotdata(inchirp,outchirp,tin,tout):
 
 def runexample():
     """ """
-    t_len = 5
-    fs = 10000
-    bw = 2000
-    nzeros = 20000
     nchans = 32
+    fs = 10000
+    t_len = 6.5536
+    
+    bw = 2000
+    nzeros = 1024
+    
 
     x_rec,t,x,_ = runchirptest(t_len,fs,bw,nzeros,nchans)
     x_rec = x_rec[:len(x)]
 
     fig = plotdata(x,x_rec,t,t)
     fig.savefig('chirpdata.png')
+    plt.close(fig)
+
+    x_rec,t,x,_ = runnprchirptest(t_len,fs,bw,nzeros,nchans)
+    x_rec = x_rec[:len(x),np.newaxis] # need to add new axis due to plotting issue
+
+    fig = plotdata(x,x_rec,t,t)
+    fig.savefig('chirpdatanpr.png')
+    plt.close(fig)
 if __name__ == "__main__":
     runexample()
