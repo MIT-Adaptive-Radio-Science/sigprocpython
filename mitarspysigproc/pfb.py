@@ -270,7 +270,7 @@ def pfb_reconstruct(data, nchans, coefs, mask, fillmethod, fillparams=[], realou
 
     rec_input[mask] = data
 
-    out_data = np.fft.ifft(rec_input, n=nchans, axis=0)
+    out_data = np.fft.fft(rec_input, n=nchans, axis=0)
     if realout:
         out_data = out_data.real
 
@@ -307,12 +307,12 @@ def pfb_reconstruct(data, nchans, coefs, mask, fillmethod, fillparams=[], realou
     # Number of filter coefficients per channel
     M_c = (M + n_pre_pad + n_post_pad) // nchans
     # Reshape filter
-    h_full = h_full.reshape((M_c, nchans))[:, ::-1].T
+    h_full = h_full.reshape((nchans,M_c),order="F")
 
     # Number of data samples per channel
     W = int(math.ceil(n_samps / M_c / nchans))
     # Array to be filled up
-    x_summed = np.zeros((nchans, M_c * (W + 1) - 1, subchan), dtype=rec_array.dtype)
+    x_summed = np.zeros((nchans, M_c * W , subchan), dtype=rec_array.dtype)
     nfull = nchans * W * M_c
 
     zfill = np.zeros((nchans, (nfull - n_samps) // nchans), dtype=rec_array.dtype)
@@ -327,13 +327,13 @@ def pfb_reconstruct(data, nchans, coefs, mask, fillmethod, fillparams=[], realou
         for p_i, (x_i, h_i) in enumerate(zip(x_p, h_full)):
             # Use correlate for filtering. Due to orientation of how filter is broken up.
             # Also using full signal to make sure padding and removal is done right.
-            x_summed[p_i, :, isub] = sig.correlate(x_i, h_i, mode="full")
+            x_summed[p_i, :, isub] = sig.lfilter(h_i,1,x_i)
 
     for isub in range(subchan):
         # x_out = np.fft.fftshift(np.fft.fft(x_summed[:, n_pre_remove:(n_samps//nchans)+n_pre_remove, isub].T,axis=1).real,axes=1)
         # rec_array[:, isub] = x_out.flatten()
-        x_out = x_summed[:, n_pre_remove: (n_samps // nchans) + n_pre_remove, isub].T
-        rec_array[:, isub] = x_out.flatten()
+        x_out = x_summed[:, n_pre_remove: (n_samps // nchans) + n_pre_remove, isub]
+        rec_array[:, isub] = x_out.flatten(order="F")
 
     return rec_array
 
@@ -443,11 +443,12 @@ def pfb_decompose(data, nchans, coefs, mask):
     # Number of filter coefficients per channel
     M_c = (M + n_pre_pad + n_post_pad) // nchans
     # Reshape filter
-    h = h.reshape((M_c, nchans)).T
+    h = h.reshape((nchans,M_c ),order="F")[:,::-1]
     # Number of data samples per channel
     W = int(math.ceil(n_samps / M_c / nchans))
     # Array to be filled up
-    x_summed = np.zeros((nchans, M_c * (W + 1) - 1, subchan), dtype=np.complex64)
+    x_summed = np.zeros((nchans, M_c * W , subchan), dtype=data.dtype)
+    # x_summed = np.zeros((nchans, M_c * (W + 1) - 1, subchan), dtype=np.complex64)
     nfull = nchans * W * M_c
     zfill = np.zeros(nfull - n_samps, dtype=data.dtype)
     # HACK see if I can do with without
@@ -455,27 +456,45 @@ def pfb_decompose(data, nchans, coefs, mask):
         x_p = data[:, isub]
         x_p = np.append(x_p, zfill, axis=0)
         # make x_p frequency x time orientation
-        x_p = x_p.reshape((W * M_c, nchans)).T[::-1]
+        x_p = x_p.reshape((nchans,W*M_c),order="F")
         for p_i, (x_i, h_i) in enumerate(zip(x_p, h)):
             # Use correlate for filtering. Due to orientation of how filter is broken up.
             # Also using full signal to make sure padding and removal is done right.
-            x_summed[p_i, :, isub] = sig.correlate(x_i, h_i, mode="full")
+            x_summed[p_i, :, isub] = sig.lfilter(h_i, 1, x_i,)
     # now fchan x time x phychan
-    xout = np.fft.fft(x_summed, n=nchans, axis=0)[
+    xout = np.fft.ifft(x_summed, n=nchans, axis=0)[
         mask, n_pre_remove : (nout + n_pre_remove)
     ]
     return xout
 
 # %% 
-def npr_analysis(data,nchans,coeffs):
+def npr_analysis(xin,nchans,coeffs):
+    """PFB analysis using near perfect reconcsturction method. 
+    
+    Performs a poly phase filter bank channelization that allows for near perfect reconstruction. This is done by creating overlaping channels to avoid any lossed from the filtering. The method is based off of this: Wessel Lubberhuizen (2024). Near Perfect Reconstruction Polyphase Filterbank (https://www.mathworks.com/matlabcentral/fileexchange/15813-near-perfect-reconstruction-polyphase-filterbank), MATLAB Central File Exchange
 
+    Parameters
+    ----------
+    xin : ndarray
+        The data that will be channelized along its first dimention.
+    nchans : int
+        Number of channels for the polyphase.
+    coeffs : ndarray
+        Filter coefficients, first dimension must be nchans//2.
+
+    Returns
+    -------
+    yout : ndarray
+        The output from the polyphase channelizer in the shape of nchans by xin.shape[0]/(nchans/2)
+    """
+    
     nfft = nchans//2
     remove_sub = False
-    if data.ndim == 1:
-        data = data[:, np.newaxis]
+    if xin.ndim == 1:
+        xin =  xin[:, np.newaxis]
         remove_sub = True
     
-    n_samps, subchan = data.shape
+    n_samps, subchan = xin.shape
     nout = n_samps // nfft + (n_samps % nfft > 0)
 
     h = coeffs.copy()
@@ -484,67 +503,84 @@ def npr_analysis(data,nchans,coeffs):
     if nchans_check != nfft:
         raise ValueError("Filter coefficients axis 0 size must equal number of pfb channels.")
 
-
-    phi = np.mod(np.arange(n_samps),nchans).astype(float)*np.pi/nfft 
-    osc =  np.exp(1j*phi).astype(np.complex64)
-    # Change data to work with the new type
-    data = data.astype(osc.dtype)
-    # since data has a sub channel use this
-    data_osc = osc[:,np.newaxis]*data
+    # Change xin to work with the new type
+    xin = xin.astype(np.complex128)
+    # since xin has a sub channel use this
+    # xin_osc = osc[:,np.newaxis]*xin
     
-    h_comp = h.astype(data_osc.dtype)
-
+   
+    h_comp = h.astype(xin.dtype)
+     # Flip the filter coefficents in time around for the analysis
+    h_comp = h_comp[:,::-1]
       # Number of data samples per channel
     W = int(math.ceil(n_samps / M_c / nfft))
-    x_summed0 = np.zeros((nfft, M_c * W , subchan), dtype=data_osc.dtype)
-    x_summed1 = np.zeros((nfft, M_c * W, subchan), dtype=data_osc.dtype)
+    x_summed0 = np.zeros((nfft, M_c * W , subchan), dtype=xin.dtype)
+    x_summed1 = np.zeros((nfft, M_c * W, subchan), dtype=xin.dtype)
 
     nfull = nfft * W * M_c
-    zfill = np.zeros(nfull - n_samps, dtype=data.dtype)
-    # HACK see if I can do with without
+    nslice = int(math.ceil(nfull/nfft))
+    zfill = np.zeros(nfull - n_samps, dtype=xin.dtype)
+    phi = np.mod(np.arange(nfull),2*nfft).astype(float)*np.pi/nfft 
+    osc =  np.exp(1j*phi).astype(np.complex128)
+    # HACK see if I can do with without the loop
     for isub in range(subchan):
-        x_p0 = data[:, isub]
-        x_p0 = np.append(x_p0, zfill, axis=0)
-        x_p1 = data_osc[:, isub]
-        x_p1 = np.append(x_p1, zfill, axis=0)
+        x_p0 = np.append(xin[:, isub], zfill, axis=0)
+        x_p1 = x_p0*osc
         # make x_p frequency x time orientation
-        x_p0 = x_p0.reshape((W * M_c, nfft)).T[::-1]
-        x_p1 = x_p1.reshape((W * M_c, nfft)).T[::-1]
+        x_p0 = x_p0.reshape((nfft,nslice),order="F")
+        x_p1 = x_p1.reshape((nfft,nslice),order="F")
         for p_i, (x_i0,x_i1, h_i) in enumerate(zip(x_p0,x_p1, h_comp)):
-            # Use correlate for filtering. Due to orientation of how filter is broken up.
-            # Also using full signal to make sure padding and removal is done right.
+            # Use lfilter 
             x_summed0[p_i, :, isub] = sig.lfilter(h_i, 1, x_i0)
             x_summed1[p_i, :, isub] = sig.lfilter(h_i, 1, x_i1)    # now fchan x time x phychan
     xout0 = np.fft.ifft(x_summed0, n=nfft, axis=0)*nfft
     xout1 = np.fft.ifft(x_summed1, n=nfft, axis=0)*nfft
-    xout = np.zeros((nchans, M_c * W , subchan),dtype=xout0.dtype)
+    xout = np.zeros((nchans, nslice , subchan),dtype=xout0.dtype)
     xout[0:nchans:2] = xout0
     xout[1:nchans:2] = xout1
     if remove_sub:
-        xout = xout[...,0]
+        yout = xout[...,0]
 
-    return xout
+    return yout
 # %%
-def npr_synthesis(data,nchans,coeffs,realout=False):
+def npr_synthesis(yin,nchans,coeffs,realout=False):
+    """PFB synthesis using near perfect reconcsturction method. 
+    
+    Performs a poly phase filter bank synthesis that allows for near perfect reconstruction. The method is based off of this: Wessel Lubberhuizen (2024). Near Perfect Reconstruction Polyphase Filterbank (https://www.mathworks.com/matlabcentral/fileexchange/15813-near-perfect-reconstruction-polyphase-filterbank), MATLAB Central File Exchange
 
+    Parameters
+    ----------
+    yin : ndarray
+        The data that will be channelized along its first dimention.
+    nchans : int
+        Number of channels for the polyphase.
+    coeffs : ndarray
+        Filter coefficients, first dimension must be nchans//2.
+    realout : bool
+        Will output a real signal if set to true.
+        
+    Returns
+    -------
+    xout : ndarray
+        The output from the polyphase synthesis.
+    """
     nfft = nchans//2
     remove_sub = False
-    if data.ndim == 2:
-        data = data[..., np.newaxis]
+    if yin.ndim == 2:
+        yin = yin[..., np.newaxis]
         remove_sub = True
 
-    _, ntime, subchan = data.shape
+    _, ntime, subchan = yin.shape
 
     shp = (nchans, ntime, subchan)
-    data_e = data[0:nchans:2]
-    data_o = data[1:nchans:2]
+    yin_e = yin[0:nchans:2]
+    yin_o = yin[1:nchans:2]
 
-    xe = np.fft.fft(data_e,n=nfft,axis=0)*nfft
-    xo = np.fft.fft(data_o,n=nfft,axis=0)*nfft
+    xe = np.fft.fft(yin_e,n=nfft,axis=0)*nfft
+    xo = np.fft.fft(yin_o,n=nfft,axis=0)*nfft
 
     n_samps = ntime * nfft
 
-    rec_array = np.zeros((n_samps, subchan), dtype=xe.dtype)
     
     h = coeffs.copy()
     nchans_check, M_c = h.shape
@@ -554,14 +590,14 @@ def npr_synthesis(data,nchans,coeffs,realout=False):
      # Number of data samples per channel
     W = int(math.ceil(n_samps / M_c / nfft))
     # Array to be filled up
-    x_summede = np.zeros((nfft, M_c * W, subchan), dtype=rec_array.dtype)
+    x_summede = np.zeros((nfft, M_c * W, subchan), dtype=xe.dtype)
 
-    x_summedo = np.zeros((nfft, M_c * W , subchan), dtype=rec_array.dtype)
+    x_summedo = np.zeros((nfft, M_c * W , subchan), dtype=xe.dtype)
 
     nfull = nfft * W * M_c
-    rec_array = np.zeros((nfull, subchan), dtype=xe.dtype)
+    xout = np.zeros((nfull, subchan), dtype=xe.dtype)
 
-    zfill = np.zeros((nfft, (nfull - n_samps) // nfft), dtype=rec_array.dtype)
+    zfill = np.zeros((nfft, (nfull - n_samps) // nfft), dtype=xout.dtype)
     phi = np.mod(np.arange(nfull),nchans).astype(float)*np.pi/nfft
     osterm = np.exp(-1j*phi)
     # import ipdb
@@ -581,16 +617,16 @@ def npr_synthesis(data,nchans,coeffs,realout=False):
 
     for isub in range(subchan):
         # x_out = np.fft.fftshift(np.fft.fft(x_summed[:, n_pre_remove:(n_samps//nchans)+n_pre_remove, isub].T,axis=1).real,axes=1)
-        # rec_array[:, isub] = x_out.flatten()
+        # xout[:, isub] = x_out.flatten()
         x_oute = x_summede[:, :nfull//nfft, isub].T
         x_outo = x_summedo[:, :nfull//nfft, isub].T
-        rec_array[:, isub] = x_oute.flatten() -x_outo.flatten()*osterm
+        xout[:, isub] = x_oute.flatten() -x_outo.flatten()*osterm
 
     if remove_sub:
-        rec_array = rec_array[...,0]
+        xout = xout[...,0]
     if realout:
-        rec_array = rec_array.real
-    return rec_array
+        xout = xout.real
+    return xout
 
 
 

@@ -72,12 +72,15 @@ def kaiser_pfb_coefs(nchans, tpc=32, npr=False, beta=1.7 * np.pi):
         Number of frequency channels that the coefficients will be used for.
     beta : float
         Shape parameter for the filter.
-
+    npr : bool
+        If yes then the number of rows is divided by 2 for the npr style filter.
+    beta : float
+        A shaping parameter for the kaiser functions. Default : 1.7*pi
 
     Returns
     -------
     taps : array_like
-        Resulting filter taps.
+        Resulting filter taps as nchans x tpc array.
     """
 
     if npr:
@@ -91,7 +94,7 @@ def kaiser_pfb_coefs(nchans, tpc=32, npr=False, beta=1.7 * np.pi):
    
     # Make even number so you have type 2 filter.
     taps = sig.firwin(ntaps, 1, window=("kaiser", beta), scale=True, fs=fs)
-    coeffs = taps.reshape((tpc,ncols)).T
+    coeffs = taps.reshape((ncols,tpc),order="F")
     return coeffs
 
 def createcoeffs(savedir):
@@ -125,8 +128,8 @@ def createcoeffs(savedir):
 
 
 def rref_coef(N,L,K=None):
-    """Creates a filter with the frequency response of the a root error function and sets it up for a npr filter bank.
-
+    """Creates a filter with the frequency response of the a root error function and sets it up for a npr filter bank. Based off the following: Wessel Lubberhuizen (2024). Near Perfect Reconstruction Polyphase Filterbank (https://www.mathworks.com/matlabcentral/fileexchange/15813-near-perfect-reconstruction-polyphase-filterbank), MATLAB Central File Exchange
+    
     Parameters
     ----------
     N : int
@@ -134,7 +137,7 @@ def rref_coef(N,L,K=None):
     L : int
         Number of taps per channel.
     K : float
-        A scaling factor
+        A shaping factor but has default values
 
     Returns
     -------
@@ -157,4 +160,4 @@ def rref_coef(N,L,K=None):
     B = np.fft.ifft(A)
     B = np.fft.fftshift(B).real
 
-    return B.reshape(L,M).T
+    return B.reshape((M,L),order='F')
