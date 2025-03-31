@@ -577,7 +577,7 @@ def npr_synthesis(yin, nchans, coeffs, realout=False):
     Parameters
     ----------
     yin : ndarray
-        The data that will be channelized along its first dimention.
+        The data that will be channelized along its first dimension.
     nchans : int
         Number of channels for the polyphase.
     coeffs : ndarray

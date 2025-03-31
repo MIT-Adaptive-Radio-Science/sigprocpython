@@ -5,7 +5,7 @@ import scipy.special as scisp
 
 
 def kaiser_coeffs(nchans, beta=1.7 * np.pi, pow2=True):
-    """Creates a Kaiser window with a flat passband
+    """Creates a Type 1 Kaiser window with a flat passband. Adds zeros to the begining of the filter to give full samples as the delay.
 
     Parameters
     ----------

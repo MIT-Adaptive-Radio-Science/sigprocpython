@@ -34,7 +34,7 @@ def create_chirp(t_len, fs, bw, pad, nchans, nslice):
         Number of channels for the PFB
     nslice : int
         Number of time samples from the pfb
-    
+
     Returns
     -------
     tout : ndarray
@@ -92,7 +92,7 @@ def runchirptest(t_len, fs, bw, nzeros, nchans, nslice):
     """
     pad = [np.zeros(nzeros), np.zeros(nzeros)]
     t, x = create_chirp(t_len, fs, bw, pad, nchans, nslice)
- 
+
     coeffs = kaiser_coeffs(nchans, 8.0)
     mask = np.ones(nchans, dtype=bool)
     xout = pfb_decompose(x, nchans, coeffs, mask)
@@ -105,7 +105,7 @@ def runchirptest(t_len, fs, bw, nzeros, nchans, nslice):
     return x_rec, t, x, xout
 
 
-def runnprchirptest(t_len, fs, bw, nzeros, nchans, nslice):
+def runnprchirptest(t_len, fs, bw, nzeros, nchans, nslice, ntaps = 64):
     """Creates a chirp and runs the near perfect PFB analysis and reconstruction
 
     Parameters
@@ -134,7 +134,7 @@ def runnprchirptest(t_len, fs, bw, nzeros, nchans, nslice):
     """
     pad = [np.zeros(nzeros), np.zeros(nzeros)]
     t, x = create_chirp(t_len, fs, bw, pad, nchans, nslice)
-    coeffs = rref_coef(nchans, 64)
+    coeffs = rref_coef(nchans, ntaps)
     mask = np.ones(nchans, dtype=bool)
     xout = npr_analysis(x, nchans, coeffs)
     fillmethod = ""
@@ -160,7 +160,7 @@ def nexpow2(x):
     return int(np.power(2, np.ceil(np.log2(x))))
 
 
-def plotdata(x, x_rec, tin, tout):
+def plotdata(x, x_rec, tin, tout,g_del = 0):
     """Plot the data and return the figure.
 
     Parameters
@@ -180,20 +180,27 @@ def plotdata(x, x_rec, tin, tout):
         The matplotlib fig for plotting or saving.
     """
 
-    fig, ax = plt.subplots(2, 1, figsize=(10, 5))
+    fig, ax = plt.subplots(3, 1, figsize=(10, 5))
 
     inlen = x.shape[0]
     outlen = x_rec.shape[0]
     tau = tin[1] - tin[0]
 
-    ax[0].plot(tin, x, label="Input")
-    ax[0].plot(tout, x_rec, label="Output")
+    ax[0].plot(tin, x.real, label="Input")
+    ax[0].plot(tout, np.roll(x_rec.real,-g_del), label="Output")
 
     ax[0].set_xlabel("Time in Seconds")
     ax[0].set_ylabel("Amplitude")
-    ax[0].set_title("Time Domain")
+    ax[0].set_title("Time Domain Real Part")
     ax[0].grid(True)
 
+    ax[1].plot(tin, x.imag, label="Input")
+    ax[1].plot(tout, np.roll(x_rec.imag,-g_del), label="Output")
+
+    ax[1].set_xlabel("Time in Seconds")
+    ax[1].set_ylabel("Amplitude")
+    ax[1].set_title("Time Domain Imaginary Part")
+    ax[1].grid(True)
     nfft_in = nexpow2(inlen)
     nfft_out = nexpow2(outlen)
 
@@ -206,14 +213,14 @@ def plotdata(x, x_rec, tin, tout):
     spec_in_log = 10 * np.log10(spec_in)
     spec_out_log = 10 * np.log10(spec_out)
 
-    ax[1].plot(in_freq, spec_in_log, label="Input")
-    ax[1].plot(out_freq, spec_out_log, label="Output")
+    ax[2].plot(in_freq, spec_in_log, label="Input")
+    ax[2].plot(out_freq, spec_out_log, label="Output")
 
-    ax[1].set_xlabel("Frequency in Hz")
-    ax[1].set_ylabel("Amp dB")
-    ax[1].set_title("Frequency Content")
-    ax[1].grid(True)
-    ax[1].set_ylim([0, 60])
+    ax[2].set_xlabel("Frequency in Hz")
+    ax[2].set_ylabel("Amp dB")
+    ax[2].set_title("Frequency Content")
+    ax[2].grid(True)
+    ax[2].set_ylim([0, 60])
     fig.tight_layout()
     return fig
 
@@ -239,7 +246,7 @@ def plot_spectrogram(x, x_rec, x_pfb):
     nfft = 256
     w = sig.get_window("blackman", nfft)
     SFT = sig.ShortTimeFFT(
-        w, hop=nfft, fs=1.0, mfft=nfft, scale_to="magnitude", fft_mode="centered"
+        w, hop=nfft, fs=10000, mfft=nfft, scale_to="magnitude", fft_mode="centered"
     )
 
     sxin = 20 * np.log10(np.abs((SFT.stft(x))) + 1e-12)
@@ -271,7 +278,7 @@ def plot_spectrogram(x, x_rec, x_pfb):
         x_pfb_db,
         origin="lower",
         aspect="auto",
-        extent=[0, nslice, 0, nchan],
+        extent=SFT.extent(len(x_rec)),
         cmap="viridis",
         vmin=-50,
         vmax=0,
@@ -286,12 +293,14 @@ def plot_spectrogram(x, x_rec, x_pfb):
 
 def runexample():
     """Function for running each of the examples."""
-    nchans = 32
-    fs = 10000
-    t_len = 6.5536
+    nchans = 64
     nslice = 2048
+    fs = 10000
+    t_len = nchans*nslice/fs
     bw = 2000
-    nzeros = 1024
+    ntaps = 64
+    g_del = nchans*(ntaps-1)//2
+    nzeros = 2048
 
     x_rec, t, x, xpfb = runchirptest(t_len, fs, bw, nzeros, nchans, nslice)
     # x_rec = x_rec[:len(x)]
@@ -303,10 +312,10 @@ def runexample():
     fig2.savefig("chirpspecgrams.png")
     plt.close(fig2)
 
-    x_rec, t, x, xpfb = runnprchirptest(t_len, fs, bw, nzeros, nchans, nslice)
+    x_rec, t, x, xpfb = runnprchirptest(t_len, fs, bw, nzeros, nchans, nslice, ntaps)
     x_rec = x_rec[: len(x), np.newaxis]  # need to add new axis due to plotting issue
 
-    fig = plotdata(x, x_rec, t, t)
+    fig = plotdata(x, x_rec, t, t, g_del)
     fig.savefig("chirpdatanpr.png")
     plt.close(fig)
 
