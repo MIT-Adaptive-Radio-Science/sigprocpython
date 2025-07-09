@@ -5,15 +5,17 @@ Code for constant false alarm rate and other detectors.
 """
 import numpy as np
 import scipy.special as sc
+from pickle import FLOAT
 
 
 def cfar(data, cfar_width, thresh):
     """Run the cfar detector on a data set with the same threshold unit.
 
     Runs a constant false alarm detector in one dimension.
+
     Parameters
     ----------
-    data : array_like
+    data : ndarray
         Data array that will be examined.
     cfar_width : int
         Width of the CFAR array.
@@ -53,9 +55,21 @@ def erlang_ratio(pfa, k):
 
     Create the threshold for a erlang random variable by using inverse lower incomplete gamma functions.
 
+    Parameters
+    ----------
+    pfa : float
+        Probability of false alarm.
+    k : int
+        Shape parameter or number of exponentially distributed terms added together.
+
+    Returns
+    -------
+    erlang_ratio
+        Multiplier to go from median to mean.
     """
 
     gm_num = sc.gammaincinv(k, 1.0 - pfa)
     gm_den = sc.gammaincinv(k, 0.5)
+    erlang_ratio = gm_num / gm_den
 
-    return gm_num / gm_den
+    return erlang_ratio

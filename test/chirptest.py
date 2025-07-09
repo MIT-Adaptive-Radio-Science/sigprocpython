@@ -2,6 +2,7 @@
 Create a chirp  and test the PFB.
 
 """
+
 from pathlib import Path
 import numpy as np
 import scipy.signal as sig
@@ -105,7 +106,7 @@ def runchirptest(t_len, fs, bw, nzeros, nchans, nslice):
     return x_rec, t, x, xout
 
 
-def runnprchirptest(t_len, fs, bw, nzeros, nchans, nslice, ntaps = 64):
+def runnprchirptest(t_len, fs, bw, nzeros, nchans, nslice, ntaps=64):
     """Creates a chirp and runs the near perfect PFB analysis and reconstruction
 
     Parameters
@@ -160,7 +161,7 @@ def nexpow2(x):
     return int(np.power(2, np.ceil(np.log2(x))))
 
 
-def plotdata(x, x_rec, tin, tout,g_del = 0):
+def plotdata(x, x_rec, tin, tout, g_del=0):
     """Plot the data and return the figure.
 
     Parameters
@@ -187,7 +188,7 @@ def plotdata(x, x_rec, tin, tout,g_del = 0):
     tau = tin[1] - tin[0]
 
     ax[0].plot(tin, x.real, label="Input")
-    ax[0].plot(tout, np.roll(x_rec.real,-g_del), label="Output")
+    ax[0].plot(tout, np.roll(x_rec.real, -g_del), label="Output")
 
     ax[0].set_xlabel("Time in Seconds")
     ax[0].set_ylabel("Amplitude")
@@ -195,7 +196,7 @@ def plotdata(x, x_rec, tin, tout,g_del = 0):
     ax[0].grid(True)
 
     ax[1].plot(tin, x.imag, label="Input")
-    ax[1].plot(tout, np.roll(x_rec.imag,-g_del), label="Output")
+    ax[1].plot(tout, np.roll(x_rec.imag, -g_del), label="Output")
 
     ax[1].set_xlabel("Time in Seconds")
     ax[1].set_ylabel("Amplitude")
@@ -296,10 +297,10 @@ def runexample():
     nchans = 64
     nslice = 2048
     fs = 10000
-    t_len = nchans*nslice/fs
+    t_len = nchans * nslice / fs
     bw = 2000
     ntaps = 64
-    g_del = nchans*(ntaps-1)//2
+    g_del = nchans * (ntaps - 1) // 2
     nzeros = 2048
 
     x_rec, t, x, xpfb = runchirptest(t_len, fs, bw, nzeros, nchans, nslice)

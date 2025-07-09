@@ -481,7 +481,7 @@ def pfb_reconstruct(data, nchans, coefs, mask, fillmethod, fillparams=[], realou
         x_out = x_summed[
             :, :, isub
         ]  # n_pre_remove: (n_samps // nchans) + n_pre_remove, isub]
-        rec_array[:, isub] = x_out.flatten(order="F")[:(nfull-nadd*nchans)]
+        rec_array[:, isub] = x_out.flatten(order="F")[: (nfull - nadd * nchans)]
 
     if realout:
         rec_array = rec_array.real

@@ -59,7 +59,7 @@ def kaiser_syn_coeffs(nchans, beta=1.7 * np.pi, pow2=True):
     if pow2:
         ntaps = int(np.power(2, np.ceil(np.log2(ntaps))))
     # Make odd number so you have type 1 filter.
-    furry = sig.firwin(ntaps - 1, 1, window=("kaiser", beta), scale=True, fs=fs )
+    furry = sig.firwin(ntaps - 1, 1, window=("kaiser", beta), scale=True, fs=fs)
     taps = np.concatenate(([0], furry))
     taps = taps * nchans**2
     return taps
