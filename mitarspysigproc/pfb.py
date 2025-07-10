@@ -15,7 +15,7 @@ def pfbresponse(taps, nchans, fs):
 
     Parameters
     ----------
-    taps : str or array_like
+    taps : str or ndarray
         If string will treat it as a csv file. If array treats it as taps to the filter.
     nchans : int
         The number of channesl for the pfb.
@@ -24,7 +24,7 @@ def pfbresponse(taps, nchans, fs):
 
     Returns
     -------
-    freq_ar : array_like
+    freq_ar : ndarray
         Frequency vector in Hz.
     filt_dict : dict
         Keys are filter number, values are frequency response in dB
@@ -86,7 +86,7 @@ def plotresponse(freq_ar, filt_dict, nchans):
 
     Parameters
     ----------
-    freq_ar : array_like
+    freq_ar : ndarray
         Frequency vector in Hz.
     filt_dict : dict
         Keys are filter number, values are frequency response in dB
@@ -97,7 +97,7 @@ def plotresponse(freq_ar, filt_dict, nchans):
     -------
     fig : figure
         Image of frequency response.
-    axs : array_like
+    axs : ndarray
         List of the axes that teh frequency response plotted on.
     """
     fig, axs = plt.subplots(2, 1, figsize=(6, 8))
@@ -138,12 +138,17 @@ def pfb_dec_simp(data, nchans, coeffs):
     """
     Parameters
     ----------
-    data : array_like
+    data : ndarray
         A numpy array to be processed.
     nchans : int
         Number of output channes
-    coefs : array_like
+    coefs : ndarray
         Filter coefficients in nchan x tpc array.
+
+    Returns
+    -------
+    xout : ndarray
+        The output from the polyphase.
     """
     remove_sub = False
     if data.ndim == 1:
@@ -190,12 +195,17 @@ def pfb_rec_simp(data, nchans, coeffs, mask, fillmethod, fillparams=[], realout=
     """
     Parameters
     ----------
-    data : array_like
+    data : ndarray
         A numpy array to be processed.
     nchans : int
         Number of output channes
-    coefs : array_like
+    coefs : ndarray
         Filter coefficients in nchan x tpc array.
+
+    Returns
+    -------
+    rec_array : ndarray
+        The output from the polyphase synthesis.
     """
 
     remove_sub = False
@@ -211,9 +221,10 @@ def pfb_rec_simp(data, nchans, coeffs, mask, fillmethod, fillparams=[], realout=
         else:
             npw = np.nanmedian(data.flatten().real ** 2 + data.flatten().imag ** 2)
             npw = npw / np.log(2)
-        d1 = np.random.randn(shp, dtype=data.dtype) + 1j * np.random.randn(
-            shp, dtype=data.dtype
-        )
+        d1r = np.random.randn(*shp, dtype=data.dtype)
+        d1i =  np.random.randn(*shp, dtype=data.dtype)
+        d1 = d1r + 1j*d1i
+
         d1 = np.sqrt(npw / 2) * d1
         rec_input = d1
     elif fillmethod == "value":
@@ -281,18 +292,18 @@ def pfb_decompose(data, nchans, coefs, mask):
 
     Parameters
     ----------
-    data : array_like
+    data : ndarray
         A numpy array to be processed.
     nchans : int
         Number of output channes
-    coefs : array_like
+    coefs : ndarray
         Filter coefficients
-    mask : array_like
+    mask : ndarray
         List of channels to be kept
 
     Returns
     -------
-    xout : array_like
+    xout : ndarray
         The output from the polyphase.
     """
 
@@ -364,13 +375,13 @@ def pfb_reconstruct(data, nchans, coefs, mask, fillmethod, fillparams=[], realou
 
     Parameters
     ----------
-    data : array_like
+    data : ndarray
         A numpy array to be processed.
     nchans : int
         Number of output channes
-    coefs : array_like
+    coefs : ndarray
         Filter coefficients
-    mask : array_like
+    mask : ndarray
         List of channels to be kept
     fillmethod : string
         Type of filled in the data before the reconstrution.
@@ -379,7 +390,7 @@ def pfb_reconstruct(data, nchans, coefs, mask, fillmethod, fillparams=[], realou
 
     Returns
     -------
-    rec_array : array_like
+    rec_array : ndarray
         The output from the polyphase synthesis.
     """
 
