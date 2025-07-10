@@ -11,6 +11,9 @@ Welcome to MITHaystackarspysigproc's documentation!
    :caption: Contents:
 
    intro
+   notebooks/sinpfbexample
+   notebooks/chirpexample
+
    mitarspysigproc
 
 Indices and tables

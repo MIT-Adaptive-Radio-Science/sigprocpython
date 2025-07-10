@@ -1,5 +1,5 @@
 """
-Create a chirp  and test the PFB.
+Create a sin function  and test the PFB.
 
 """
 
@@ -84,7 +84,6 @@ def runsintest(t_len, fs, bw, nzeros, nchans):
     """
     pad = [np.zeros(nzeros), np.zeros(nzeros)]
     t, x = create_sin(t_len, fs, bw, nchans, pad)
-    mainpath = Path(__file__).resolve().parent.parent
     coeffs = kaiser_coeffs(nchans, pow2=False)
     mask = np.ones(nchans, dtype=bool)
     xout = pfb_decompose(x, nchans, coeffs, mask)

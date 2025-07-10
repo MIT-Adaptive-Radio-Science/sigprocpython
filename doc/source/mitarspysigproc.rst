@@ -4,7 +4,7 @@ mitarspysigproc package
 Submodules
 ----------
 
-mitarspysigproc.detectors module
+Detectors
 --------------------------------
 
 .. automodule:: mitarspysigproc.detectors
@@ -12,7 +12,7 @@ mitarspysigproc.detectors module
    :undoc-members:
    :show-inheritance:
 
-mitarspysigproc.estimators module
+Estimators
 ---------------------------------
 
 .. automodule:: mitarspysigproc.estimators
@@ -20,7 +20,7 @@ mitarspysigproc.estimators module
    :undoc-members:
    :show-inheritance:
 
-mitarspysigproc.filtertools module
+Filter Tools
 ----------------------------------
 
 .. automodule:: mitarspysigproc.filtertools
@@ -28,7 +28,7 @@ mitarspysigproc.filtertools module
    :undoc-members:
    :show-inheritance:
 
-mitarspysigproc.pfb module
+Polyphase Filter Banks
 --------------------------
 
 .. automodule:: mitarspysigproc.pfb
