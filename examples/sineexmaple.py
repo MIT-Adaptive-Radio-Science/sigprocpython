@@ -12,6 +12,7 @@ from mitarspysigproc import (
     kaiser_coeffs,
     kaiser_syn_coeffs,
 )
+import matplotlib.pyplot as plt
 
 
 def create_sin(t_len, fs, bw, nchans, pad):
@@ -113,6 +114,64 @@ def nexpow2(x):
 
 
 
+def plotdata(inchirp, outchirp, tin, tout,g_del=0):
+    """Plot the data and return the figure.
+
+    Parameters
+    ----------
+    x : ndarray
+        Input signal
+    x_rec : ndarray
+        Reconstructed signal
+    tin : ndarray
+        The time vector for the input signal
+    tout : ndarray
+        The time vector for the output signal
+
+    Returns
+    -------
+    fig : matplotlib.fig
+        The matplotlib fig for plotting or saving.
+
+    """
+
+    fig, ax = plt.subplots(2, 1, figsize=(10, 5))
+
+    inlen = inchirp.shape[0]
+    outlen = outchirp.shape[0]
+    tau = tin[1] - tin[0]
+
+    ax[0].plot(tin, inchirp, label="Input")
+    ax[0].plot(tout, np.roll(outchirp,-g_del), label="Output")
+
+    ax[0].set_xlabel("Time in Seconds")
+    ax[0].set_ylabel("Amplitude")
+    ax[0].set_title("Time Domain")
+    ax[0].grid(True)
+
+    nfft_in = nexpow2(inlen)
+    nfft_out = nexpow2(outlen)
+
+    in_freq = np.fft.fftshift(np.fft.fftfreq(nfft_in, d=tau))
+    out_freq = np.fft.fftshift(np.fft.fftfreq(nfft_out, d=tau))
+
+    spec_in = np.abs(np.fft.fftshift(np.fft.fft(inchirp, n=nfft_in))) ** 2
+    spec_out = np.abs(np.fft.fftshift(np.fft.fft(outchirp[:, 0], n=nfft_out))) ** 2
+
+    spec_in_log = 10 * np.log10(spec_in)
+    spec_out_log = 10 * np.log10(spec_out)
+
+    ax[1].plot(in_freq, spec_in_log, label="Input")
+    ax[1].plot(out_freq, spec_out_log, label="Output")
+
+    ax[1].set_xlabel("Frequency in Hz")
+    ax[1].set_ylabel("Amp dB")
+    ax[1].set_title("Frequency Content")
+    ax[1].grid(True)
+    ax[1].set_ylim([0, 90])
+
+    fig.tight_layout()
+    return fig
 
 
 def runexample():
@@ -125,7 +184,11 @@ def runexample():
 
     x_rec, t, x, _ = runsintest(t_len, fs, bw, nzeros, nchans)
     x_rec = x_rec[: len(x)]
-    x_rec = np.roll(x_rec,1*nchans*64)
+
+    g_del = nchans * (64 - 1) // 2
+    fig = plotdata(x, x_rec, t, t,2*g_del)
+    fig.savefig("sindata.png")
+    plt.close(fig)
 
 
 if __name__ == "__main__":
