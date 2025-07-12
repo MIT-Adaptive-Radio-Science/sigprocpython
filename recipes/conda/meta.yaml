@@ -17,11 +17,13 @@ requirements:
     - setuptools
     - numpy >=1.20
     - scipy
+    - matplotlib
 
   run:
     - python
     - numpy
     - scipy
+    - matplotlib
 test:
   imports:
     - mitarspysigproc
