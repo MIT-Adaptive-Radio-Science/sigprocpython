@@ -9,8 +9,8 @@ $ACTIVITIES = [
               #'ghrelease'  # Creates a Github release entry for the new tag
                ]
 $VERSION_BUMP_PATTERNS = [ ('setup.py', 'version\s*=.*,', "version='$VERSION',"),
-('docs/source/conf.py', 'release\s*=*.*,', "release = '$VERSION' "),
-('docs/source/conf.py', 'version\s*=*.*,', "version = '$VERSION' "),
+('doc/source/conf.py', 'release\s*=*.*,', "release = '$VERSION' "),
+('doc/source/conf.py', 'version\s*=*.*,', "version = '$VERSION' "),
 ('recipes/conda/meta.yaml',  r'version:\s*', "version: $VERSION"),
 ('recipes/conda/meta.yaml',  r'git_rev:\s*', "git_rev: $VERSION"),
 ]
