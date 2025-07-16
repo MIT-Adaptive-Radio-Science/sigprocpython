@@ -222,8 +222,8 @@ def pfb_rec_simp(data, nchans, coeffs, mask, fillmethod, fillparams=[], realout=
             npw = np.nanmedian(data.flatten().real ** 2 + data.flatten().imag ** 2)
             npw = npw / np.log(2)
         d1r = np.random.randn(*shp, dtype=data.dtype)
-        d1i =  np.random.randn(*shp, dtype=data.dtype)
-        d1 = d1r + 1j*d1i
+        d1i = np.random.randn(*shp, dtype=data.dtype)
+        d1 = d1r + 1j * d1i
 
         d1 = np.sqrt(npw / 2) * d1
         rec_input = d1

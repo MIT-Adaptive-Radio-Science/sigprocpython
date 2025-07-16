@@ -1,4 +1,4 @@
-from .estimators import create_sti
+from .estimators import create_sti, make_acf
 from .detectors import cfar
 from .filtertools import kaiser_coeffs, kaiser_syn_coeffs, kaiser_pfb_coefs, rref_coef
 from .pfb import (
