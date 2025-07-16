@@ -130,3 +130,5 @@ dmypy.json
 
 # Rever
 rever/
+# conda
+/conda_dist
