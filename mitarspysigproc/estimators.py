@@ -130,7 +130,7 @@ def lag_product(x_in, nlag, nmean=10, numtype=np.complex64, lagtype="centered"):
         rng_ar2 = int(curange) + arfor
         # get all of the acfs across pulses # sum along the pulses
         acf_tmp = np.conj(x_in[rng_ar1, :]) * x_in[rng_ar2, :]  # *wearr
-        acf_sub = np.zeros((n_sub, *acf_tmp.shape), dtype=numtype)
+        acf_sub = np.zeros((n_sub, nlag), dtype=numtype)
         for i_ind, (ibeg, iend) in enumerate(zip(n_start, n_end)):
             tmp_acf = acf_tmp[:, slice(ibeg, iend)]
             acf_sub[i_ind] = np.nanmean(tmp_acf, axis=1)
@@ -269,7 +269,7 @@ def make_acf(
     minrg = -1 * sumrule[0].min()
     maxrg = n_rg - sumrule[1].max()
     n_rg_out = maxrg - minrg
-    rng_k2 = rng_k1[minrg, maxrg]
+    rng_k2 = rng_k1[minrg:maxrg]
     acf_est = np.zeros((n_rg_out, nlag), dtype=numtype)
     for inum, irg in enumerate(range(minrg, maxrg)):
         for ilag in range(nlag):
