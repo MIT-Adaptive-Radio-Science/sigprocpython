@@ -75,12 +75,12 @@ def create_sti(filename, nfft, decimation, secoffset):
 
 
 def lag_product(x_in, nlag, nmean=10, numtype=np.complex64, lagtype="centered"):
-    """This function will create a  lag product for each range using the raw IQ given to it. It will form each lag for each pulse and then integrate all of the pulses.
+    """This function will create a  lag product. It will form each lag along the first dimension and then perform sub integrations (arithmatic mean) and then apply a median across the sub integrations. This will deal with n-dimensional arrays where the first two dimensions are the process overwhich the acf is formed and the second is a set of realizations overwhich it is estimated.
 
     Parameters
     ----------
     x_in : ndarray
-        This is a NpxNs complex numpy array where Ns is number of samples per pulse and Np is number of pulses
+        This is a numpy array where the first two dimensions are NsxNp, where Ns is number of samples that process is varying (i.e. range gates in ISR) and Np is number of process relizations (e.g. pulses in ISR).
     nmean : int
         Number of pulses to be averaged first before median applied.
     nlag : int
@@ -98,9 +98,9 @@ def lag_product(x_in, nlag, nmean=10, numtype=np.complex64, lagtype="centered"):
     rg_keep : ndarray
         Indicies of the samples/range gates that will be kept after the lag formation.
     """
-    # It will be assumed the data will be pulses vs range gates
-    x_in = x_in.transpose()
-    (Nr, Np) = x_in.shape
+    # The first dimension is the where estimation is formed, the second dimension is integrated over. The other dimensions will left along and just carried through.
+    (Nr, Np) = x_in.shape[:2]
+    otherdims = x_in.shape[2:]
     med_int = np.arange(0, Np, nmean)
     n_start = med_int[:-1]
     n_end = med_int[1:]
@@ -124,13 +124,13 @@ def lag_product(x_in, nlag, nmean=10, numtype=np.complex64, lagtype="centered"):
     rg_keep = np.arange(ap, ep)
     #    wearr = (1./(N-np.tile((arfor-arback)[:,np.newaxis],(1,Np)))).astype(numtype)
     # acf_cent = np.zeros((ep-ap,N))*(1+1j)
-    acf_cent = np.zeros((ep - ap, nlag), dtype=numtype)
+    acf_cent = np.zeros((ep - ap, nlag, *otherdims), dtype=numtype)
     for irng, curange in enumerate(rg_keep):
         rng_ar1 = int(curange) + arback
         rng_ar2 = int(curange) + arfor
         # get all of the acfs across pulses # sum along the pulses
         acf_tmp = np.conj(x_in[rng_ar1, :]) * x_in[rng_ar2, :]  # *wearr
-        acf_sub = np.zeros((n_sub, nlag), dtype=numtype)
+        acf_sub = np.zeros((n_sub, nlag, *otherdims), dtype=numtype)
         for i_ind, (ibeg, iend) in enumerate(zip(n_start, n_end)):
             tmp_acf = acf_tmp[:, slice(ibeg, iend)]
             acf_sub[i_ind] = np.nanmean(tmp_acf, axis=1)
@@ -140,7 +140,82 @@ def lag_product(x_in, nlag, nmean=10, numtype=np.complex64, lagtype="centered"):
     return acf_cent, rg_keep
 
 
-# %% Pulse shapes
+def make_sum_rule(nlag, lagtype="centered", srule=None):
+    """This function will return the sum rule.
+
+    Parameter
+    ---------
+    nlag : int
+        Number of lags in the ACF.
+    lagtype : str
+        Type of lags, centered, forward or backward.
+
+    Returns
+    -------
+    sumrule : ndarray
+        A 2 x nlag numpy array that holds the summation rule.
+    """
+    if lagtype == "forward":
+        arback = -np.arange(nlag, dtype=int)
+        arforward = np.zeros(nlag, dtype=int)
+    elif lagtype == "backward":
+        arback = np.zeros(nlag, dtype=int)
+        arforward = np.arange(nlag, dtype=int)
+    elif lagtype == "centered":
+        arback = -np.ceil(np.arange(0, nlag / 2.0, 0.5)).astype(int)
+        arforward = np.floor(np.arange(0, nlag / 2.0, 0.5)).astype(int)
+    elif lagtype == "barker":
+        arback = np.zeros(1, dtype=int)
+        arforward = np.zeros(1, dtype=int)
+    sumrule = np.array([arback, arforward])
+    return sumrule
+
+
+def make_acf(
+    x_in, nlag, nmean=10, numtype=np.complex64, lagtype="centered", srule="centered"
+):
+    """Performs the full ACF estimation including application of the summation rule to equalize the lag statistics. This will deal with n-dimensional arrays where the first two dimensions are the process overwhich the acf is formed and the second is a set of realizations overwhich it is estimated.
+
+    Parameters
+    ----------
+    x_in : ndarray
+        This is a numpy array where the first two dimensions are NsxNp, where Ns is number of samples that process is varying (i.e. range gates in ISR) and Np is number of process relizations (e.g. pulses in ISR).
+    nmean : int
+        Number of pulses to be averaged first before median applied.
+    nlag : int
+        Length of the lag product formation.
+    numtype : type
+        numerical representaiton of the array.
+    lagtype : str
+        Can be centered forward or backward.
+    srule : str
+
+    Returns
+    -------
+    acf_est : ndarray
+        This is a NrxNl complex numpy array where Nr is number of range gate and Nl is number of lags.
+    rg_keep : ndarray
+        Indicies of the samples/range gates that will be kept after the lag formation.
+    """
+
+    sumrule = make_sum_rule(nlag, lagtype, srule)
+    y_out, rng_k1 = lag_product(x_in, nlag, nmean, numtype, lagtype)
+    n_rg = y_out.shape[0]
+    otherdims = x_in.shape[2:]
+    minrg = -1 * sumrule[0].min()
+    maxrg = n_rg - sumrule[1].max()
+    n_rg_out = maxrg - minrg
+    rng_k2 = rng_k1[minrg:maxrg]
+    acf_est = np.zeros((n_rg_out, nlag, *otherdims), dtype=numtype)
+    for inum, irg in enumerate(range(minrg, maxrg)):
+        for ilag in range(nlag):
+            cur_sr = sumrule[:, ilag]
+            r_sl = slice(irg + cur_sr[0], irg + cur_sr[1])
+            # perform a sum on the lags instead of a averaging otherwise you have to weight a window on the output.
+            acf_est[inum] = np.nansum(y_out[r_sl, ilag], axis=0)
+    return acf_est, rng_k2
+
+# %% Barker Codess
 def gen_bark(blen):
     """This function will output a Barker code pulse.
 
@@ -203,78 +278,3 @@ def barker_lag(x_in, numtype=None, pulse=gen_bark(13)):
     outdata = np.sum(outdata, axis=-1)
     # increase the number of axes
     return outdata[len(pulse) - 1 :, np.newaxis]
-
-
-def make_sum_rule(nlag, lagtype="centered", srule=None):
-    """This function will return the sum rule.
-
-    Parameter
-    ---------
-    nlag : int
-        Number of lags in the ACF.
-    lagtype : str
-        Type of lags, centered, forward or backward.
-
-    Returns
-    -------
-    sumrule : ndarray
-        A 2 x nlag numpy array that holds the summation rule.
-    """
-    if lagtype == "forward":
-        arback = -np.arange(nlag, dtype=int)
-        arforward = np.zeros(nlag, dtype=int)
-    elif lagtype == "backward":
-        arback = np.zeros(nlag, dtype=int)
-        arforward = np.arange(nlag, dtype=int)
-    elif lagtype == "centered":
-        arback = -np.ceil(np.arange(0, nlag / 2.0, 0.5)).astype(int)
-        arforward = np.floor(np.arange(0, nlag / 2.0, 0.5)).astype(int)
-    elif lagtype == "barker":
-        arback = np.zeros(1, dtype=int)
-        arforward = np.zeros(1, dtype=int)
-    sumrule = np.array([arback, arforward])
-    return sumrule
-
-
-def make_acf(
-    x_in, nlag, nmean=10, numtype=np.complex64, lagtype="centered", srule="centered"
-):
-    """Performs the full ACF estimation including application of the summation rule to equalize the lag statistics.
-
-    Parameters
-    ----------
-    x_in : ndarray
-        This is a NpxNs complex numpy array where Ns is number of samples per pulse and Np is number of pulses
-    nmean : int
-        Number of pulses to be averaged first before median applied.
-    nlag : int
-        Length of the lag product formation.
-    numtype : type
-        numerical representaiton of the array.
-    lagtype : str
-        Can be centered forward or backward.
-    srule : str
-
-    Returns
-    -------
-    acf_est : ndarray
-        This is a NrxNl complex numpy array where Nr is number of range gate and Nl is number of lags.
-    rg_keep : ndarray
-        Indicies of the samples/range gates that will be kept after the lag formation.
-    """
-
-    sumrule = make_sum_rule(nlag, lagtype, srule)
-    y_out, rng_k1 = lag_product(x_in, nlag, nmean, numtype, lagtype)
-    n_rg = y_out.shape[0]
-    minrg = -1 * sumrule[0].min()
-    maxrg = n_rg - sumrule[1].max()
-    n_rg_out = maxrg - minrg
-    rng_k2 = rng_k1[minrg:maxrg]
-    acf_est = np.zeros((n_rg_out, nlag), dtype=numtype)
-    for inum, irg in enumerate(range(minrg, maxrg)):
-        for ilag in range(nlag):
-            cur_sr = sumrule[:, ilag]
-            r_sl = slice(irg + cur_sr[0], irg + cur_sr[1])
-            # perform a sum on the lags instead of a averaging otherwise you have to weight a window on the output.
-            acf_est[inum] = np.nansum(y_out[r_sl, ilag], axis=0)
-    return acf_est, rng_k2
