@@ -8,7 +8,6 @@ import scipy.io.wavfile as wavio
 import matplotlib.pyplot as plt
 import scipy.signal as sig
 import numpy as np
-from test.test_buffer import ndarray_print
 
 
 def create_sti(filename, nfft, decimation, secoffset):

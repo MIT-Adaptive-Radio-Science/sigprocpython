@@ -8,4 +8,4 @@
 
 **Fixed:**
 
-* Errors in the acf estimator causing failures has be fixed.
+* Errors in the acf estimator causing failures has been fixed.
