@@ -8,6 +8,7 @@ import scipy.io.wavfile as wavio
 import matplotlib.pyplot as plt
 import scipy.signal as sig
 import numpy as np
+from test.test_buffer import ndarray_print
 
 
 def create_sti(filename, nfft, decimation, secoffset):
@@ -197,6 +198,7 @@ def make_acf(
     rg_keep : ndarray
         Indicies of the samples/range gates that will be kept after the lag formation.
     """
+    assert nlag >= 1, "nlag must be greater or equal to than one."
 
     sumrule = make_sum_rule(nlag, lagtype, srule)
     y_out, rng_k1 = lag_product(x_in, nlag, nmean, numtype, lagtype)
@@ -214,6 +216,42 @@ def make_acf(
             # perform a sum on the lags instead of a averaging otherwise you have to weight a window on the output.
             acf_est[inum] = np.nansum(y_out[r_sl, ilag], axis=0)
     return acf_est, rng_k2
+
+
+def sub_int(data, nsubs, axis=0):
+    """Perform sub integration (mean) and then median on the data.
+
+    Parameters
+    ----------
+    data : ndarray
+        Data array to be averaged over.
+    nsubs : int
+        Sub integration periods
+    axis : int
+        Axis over which the data is averaged.
+
+    Returns
+    -------
+    data_int : ndarray
+        Data array after the averaging
+    """
+    dshape = data.shape
+    n_els = dshape[axis]
+    tshape = list(dshape)
+    tshape[axis] = nsubs
+    ar1 = np.linspace(0, n_els, nsubs, dtype=int, endpoint=False)
+    ar2 = np.roll(ar1, -1)
+    ar2[-1] = n_els
+    int_points = np.column_stack((ar1, ar2))
+    tmp_data = np.empty(tshape, dtype=data.dtype)
+
+    for i_int, iloc in enumerate(int_points):
+        cur_d = data.take(range(*iloc), axis=axis)
+        tmp_data[i_int] = np.nanmean(cur_d, axis=axis)
+    data_int = np.nanmedian(tmp_data, axis=axis)
+
+    return data_int
+
 
 # %% Barker Codess
 def gen_bark(blen):
