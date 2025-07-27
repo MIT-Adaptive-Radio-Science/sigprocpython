@@ -211,9 +211,10 @@ def make_acf(
     for inum, irg in enumerate(range(minrg, maxrg)):
         for ilag in range(nlag):
             cur_sr = sumrule[:, ilag]
-            r_sl = slice(irg + cur_sr[0], irg + cur_sr[1])
+            r_sl = slice(irg + cur_sr[0], irg + cur_sr[1]+1)
+
             # perform a sum on the lags instead of a averaging otherwise you have to weight a window on the output.
-            acf_est[inum] = np.nansum(y_out[r_sl, ilag], axis=0)
+            acf_est[inum,ilag] = np.nansum(y_out[r_sl, ilag], axis=0)
     return acf_est, rng_k2
 
 
