@@ -1,10 +1,10 @@
 package:
   name: mitarspysigproc
-  version: 1.0.0
+  version: 1.0.1
 
 source:
   git_url: https://github.com/MIT-Adaptive-Radio-Science/sigprocpython
-  git_rev: 1.0.0
+  git_rev: 1.0.1
   # path: ../..
 
 build:

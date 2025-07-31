@@ -17,7 +17,7 @@ config = dict(
     description="Processing and Plotting of ",
     author="John Swoboda",
     url="https://github.com/MIT-Adaptive-Radio-Science/sigprocpython",
-    version='1.0.0',
+    version='1.0.1',
     cmdclass=versioneer.get_cmdclass(),
     install_requires=req,
     python_requires=">=3.0",
