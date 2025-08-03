@@ -8,6 +8,7 @@ import scipy.io.wavfile as wavio
 import matplotlib.pyplot as plt
 import scipy.signal as sig
 import numpy as np
+from test.test_buffer import ndarray_print
 
 
 def create_sti(filename, nfft, decimation, secoffset):
@@ -98,6 +99,9 @@ def lag_product(x_in, nlag, nmean=10, numtype=np.complex64, lagtype="centered"):
     rg_keep : ndarray
         Indicies of the samples/range gates that will be kept after the lag formation.
     """
+
+    assert nlag >= 1, "nlag must be greater or equal to than one."
+
     # The first dimension is the where estimation is formed, the second dimension is integrated over. The other dimensions will left along and just carried through.
     (Nr, Np) = x_in.shape[:2]
     otherdims = x_in.shape[2:]
@@ -189,6 +193,7 @@ def make_acf(
     lagtype : str
         Can be centered forward or backward.
     srule : str
+        Sum rule discriptor string, can be forward, backward, or centered.
 
     Returns
     -------
@@ -201,20 +206,54 @@ def make_acf(
 
     sumrule = make_sum_rule(nlag, lagtype, srule)
     y_out, rng_k1 = lag_product(x_in, nlag, nmean, numtype, lagtype)
-    n_rg = y_out.shape[0]
-    otherdims = x_in.shape[2:]
+    acf_est, rng_keep = apply_sumrule(y_out, rng_k1, numtype, nlag, sumrule=sumrule)
+    return acf_est, rng_keep
+
+
+def apply_sumrule(
+    y_in, rng_in, numtype, nlag, lagtype="centered", srule=None, sumrule=None
+):
+    """Apply the desired sum rule to the data
+
+    Parameters
+    ----------
+    y_in : ndarray
+        This is a NrxNl complex numpy array after the lag product formation stage.
+    rng_in : ndarray
+        Range gate indices of the input data.
+    numtype : type
+        numerical representaiton of the array.
+    lagtype : str
+        Can be centered forward or backward.
+    srule : str
+        Sum rule discriptor string, can be forward, backward, or centered.
+
+    Returns
+    -------
+    acf_est : ndarray
+        This is a NrxNl complex numpy array where Nr is number of range gate and Nl is number of lags.
+    rg_keep : ndarray
+        Indicies of the samples/range gates that will be kept after the lag formation.
+
+    """
+    # make the sum rule if not given
+    if sumrule is None:
+        sumrule = make_sum_rule(nlag, lagtype, srule)
+
+    n_rg = y_in.shape[0]
+    otherdims = y_in.shape[2:]
     minrg = -1 * sumrule[0].min()
     maxrg = n_rg - sumrule[1].max()
     n_rg_out = maxrg - minrg
-    rng_k2 = rng_k1[minrg:maxrg]
+    rng_k2 = rng_in[minrg:maxrg]
     acf_est = np.zeros((n_rg_out, nlag, *otherdims), dtype=numtype)
     for inum, irg in enumerate(range(minrg, maxrg)):
         for ilag in range(nlag):
             cur_sr = sumrule[:, ilag]
-            r_sl = slice(irg + cur_sr[0], irg + cur_sr[1]+1)
+            r_sl = slice(irg + cur_sr[0], irg + cur_sr[1] + 1)
 
             # perform a sum on the lags instead of a averaging otherwise you have to weight a window on the output.
-            acf_est[inum,ilag] = np.nansum(y_out[r_sl, ilag], axis=0)
+            acf_est[inum, ilag] = np.nansum(y_in[r_sl, ilag], axis=0)
     return acf_est, rng_k2
 
 

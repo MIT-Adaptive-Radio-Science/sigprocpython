@@ -1,4 +1,12 @@
-from .estimators import create_sti, make_acf, make_sum_rule, barker_lag, lag_product,sub_int
+from .estimators import (
+    create_sti,
+    make_acf,
+    make_sum_rule,
+    barker_lag,
+    lag_product,
+    sub_int,
+    apply_sumrule,
+)
 from .detectors import cfar
 from .filtertools import kaiser_coeffs, kaiser_syn_coeffs, kaiser_pfb_coefs, rref_coef
 from .pfb import (
